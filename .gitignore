@@ -1,0 +1,6 @@
+.env
+__pycache__/
+*.pyc
+ai_course_builder.db
+node_modules/
+venv/
