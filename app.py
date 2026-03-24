@@ -7,11 +7,14 @@ import os   # ✅ added for Render
 from services.ai_generator import generate_course
 from database import get_connection
 from werkzeug.security import generate_password_hash, check_password_hash
+from init_db import init_database
 
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
+
+init_database()
 
 
 @app.route("/")
