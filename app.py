@@ -3,6 +3,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import json
 import os   # ✅ added for Render
+import traceback
 
 from services.ai_generator import generate_course
 from database import get_connection
@@ -52,8 +53,8 @@ def register():
         }), 201
 
     except Exception as e:
-        if "UNIQUE constraint failed" in str(e):
-            return jsonify({"error": "Email already exists"}), 409
+        print("BACKEND ERROR:", e)
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
     finally:
