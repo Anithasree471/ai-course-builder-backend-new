@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 import json
+import os   # ✅ added for Render
 
 from services.ai_generator import generate_course
 from database import get_connection
@@ -40,7 +41,7 @@ def register():
         cursor.execute(
             "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
             (name, email, hashed_password)
-            )
+        )
         conn.commit()
 
         return jsonify({
@@ -110,7 +111,6 @@ def generate():
     try:
         course = generate_course(topic)
 
-        # if user_id sent, save course in DB also
         if user_id:
             progress = {
                 "notesCompleted": False,
@@ -265,5 +265,7 @@ def update_progress(course_id):
     return jsonify({"message": "Progress updated successfully"}), 200
 
 
+# ✅ FINAL CHANGE FOR RENDER
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
