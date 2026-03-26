@@ -15,6 +15,40 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
+def calculate_grade(progress, is_programming):
+    progress = progress or {}
+
+    if is_programming:
+        notes_score = 20 if progress.get("notesCompleted") else 0
+        videos_score = 20 if progress.get("videosCompleted") else 0
+        assessment_score = round((progress.get("assessmentScore", 0) / 100) * 20)
+        coding_score = progress.get("codingScore", 0)
+        articles_score = 20 if progress.get("articlesCompleted") else 0
+
+        overall_score = notes_score + videos_score + assessment_score + coding_score + articles_score
+    else:
+        notes_score = 25 if progress.get("notesCompleted") else 0
+        videos_score = 25 if progress.get("videosCompleted") else 0
+        assessment_score = round((progress.get("assessmentScore", 0) / 100) * 25)
+        articles_score = 25 if progress.get("articlesCompleted") else 0
+
+        overall_score = notes_score + videos_score + assessment_score + articles_score
+
+    if overall_score >= 90:
+        grade = "A+"
+    elif overall_score >= 80:
+        grade = "A"
+    elif overall_score >= 70:
+        grade = "B"
+    elif overall_score >= 60:
+        grade = "C"
+    elif overall_score >= 50:
+        grade = "D"
+    else:
+        grade = "F"
+
+    return overall_score, grade
+
 init_database()
 
 
@@ -43,9 +77,9 @@ def register():
     try:
         hashed_password = generate_password_hash(password)
         cursor.execute(
-            "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
-            (name, email, hashed_password)
-        )
+            "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
+            (name, email, hashed_password, "user")
+            )
         conn.commit()
 
         return jsonify({
@@ -53,12 +87,12 @@ def register():
         }), 201
 
     except Exception as e:
+        if "UNIQUE constraint failed" in str(e):
+            return jsonify({"error": "Email already exists"}), 409
+       
         print("BACKEND ERROR:", e)
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
-
-    finally:
-        conn.close()
 
 
 # ---------------------------
@@ -91,12 +125,13 @@ def login():
         return jsonify({"error": "Invalid email or password"}), 401
 
     return jsonify({
-        "message": "Login successful",
-        "user": {
-            "id": user["id"],
-            "name": user["name"],
-            "email": user["email"]
-        }
+    "message": "Login successful",
+    "user": {
+        "id": user["id"],
+        "name": user["name"],
+        "email": user["email"],
+        "role": user["role"] if user["role"] else "user"
+    }
     }), 200
 
 
@@ -267,6 +302,78 @@ def update_progress(course_id):
     conn.close()
 
     return jsonify({"message": "Progress updated successfully"}), 200
+
+@app.route("/admin/dashboard", methods=["GET"])
+def admin_dashboard():
+    admin_email = request.args.get("email")
+
+    if not admin_email:
+        return jsonify({"error": "Admin email required"}), 400
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM users WHERE email = ?", (admin_email,))
+    admin_user = cursor.fetchone()
+
+    if not admin_user or admin_user["role"] != "admin":
+        conn.close()
+        return jsonify({"error": "Unauthorized access"}), 403
+
+    cursor.execute("SELECT id, name, email, role FROM users ORDER BY id DESC")
+    users = cursor.fetchall()
+
+    dashboard_data = []
+
+    for user in users:
+        if user["role"] == "admin":
+            continue
+
+        cursor.execute("SELECT * FROM courses WHERE user_id = ?", (user["id"],))
+        courses = cursor.fetchall()
+
+        if not courses:
+            dashboard_data.append({
+                "user_id": user["id"],
+                "name": user["name"],
+                "email": user["email"],
+                "course_title": "No course yet",
+                "progress_percent": 0,
+                "grade": "-"
+            })
+            continue
+
+        for course in courses:
+            progress = json.loads(course["progress"]) if course["progress"] else {}
+            is_programming = bool(course["is_programming"])
+
+            checklist_items = [
+                progress.get("notesCompleted", False),
+                progress.get("videosCompleted", False),
+                progress.get("assessmentCompleted", False),
+                progress.get("articlesCompleted", False)
+            ]
+
+            if is_programming:
+                checklist_items.append(progress.get("codingCompleted", False))
+
+            completed_count = sum(1 for item in checklist_items if item)
+            progress_percent = round((completed_count / len(checklist_items)) * 100)
+
+            overall_score, grade = calculate_grade(progress, is_programming)
+
+            dashboard_data.append({
+                "user_id": user["id"],
+                "name": user["name"],
+                "email": user["email"],
+                "course_title": course["title"],
+                "progress_percent": progress_percent,
+                "grade": grade
+            })
+
+    conn.close()
+
+    return jsonify({"dashboard": dashboard_data}), 200
 
 
 # ✅ FINAL CHANGE FOR RENDER
