@@ -9,11 +9,16 @@ from services.ai_generator import generate_course
 from database import get_connection
 from werkzeug.security import generate_password_hash, check_password_hash
 from init_db import init_database
+from migrate_add_role import migrate_add_role
+from create_admin import create_admin
 
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
+migrate_add_role()
+create_admin()
+
 
 def calculate_grade(progress, is_programming):
     progress = progress or {}
