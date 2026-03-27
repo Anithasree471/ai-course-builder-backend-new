@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 import json
-import os   # ✅ added for Render
+import os
 import traceback
 
 from services.ai_generator import generate_course
@@ -16,8 +16,18 @@ load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
-migrate_add_role()
-create_admin()
+
+def setup_database():
+    try:
+        init_database()
+        migrate_add_role()
+        create_admin()
+        print("Database setup completed successfully.")
+    except Exception as e:
+        print("DATABASE SETUP ERROR:", e)
+        traceback.print_exc()
+
+setup_database()
 
 
 def calculate_grade(progress, is_programming):
@@ -54,7 +64,7 @@ def calculate_grade(progress, is_programming):
 
     return overall_score, grade
 
-init_database()
+
 
 
 @app.route("/")

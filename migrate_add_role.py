@@ -4,6 +4,17 @@ def migrate_add_role():
     conn = get_connection()
     cursor = conn.cursor()
 
+    cursor.execute("""
+        SELECT name FROM sqlite_master
+        WHERE type='table' AND name='users'
+    """)
+    table = cursor.fetchone()
+
+    if not table:
+        print("Users table does not exist yet.")
+        conn.close()
+        return
+
     cursor.execute("PRAGMA table_info(users)")
     columns = [row["name"] for row in cursor.fetchall()]
 
