@@ -17,6 +17,7 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
+
 def setup_database():
     try:
         init_database()
@@ -108,6 +109,9 @@ def register():
         print("BACKEND ERROR:", e)
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+    
+    
+   
 
 
 # ---------------------------
